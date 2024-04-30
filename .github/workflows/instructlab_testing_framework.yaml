@@ -36,11 +36,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - arch: amd64
+          - image_name: instructlab-amd
             aws_image_type: t3a.medium	
             aws_ami_architecture: x86_64
-          # - arch: amd64
+          - image_name: instructlab-nvidia
+            aws_image_type: t3a.medium	
+            aws_ami_architecture: x86_64
+          # - image_name: instructlab-amd
           #   aws_image_type: g5.8xlarge
+          #   aws_ami_architecture: x86_64
+          # - image_name: instructlab-nvidia
+          #   aws_image_type: g5.8xlarge	
           #   aws_ami_architecture: x86_64
     steps:
       - name: Checkout
@@ -73,6 +79,29 @@ jobs:
         env:
           TF_VAR_aws_instance_type: ${{ matrix.aws_image_type }}
           TF_VAR_aws_ami_architecture: ${{ matrix.aws_ami_architecture }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.1.0
+        with:
+          python-version: '3.11'
+
+      - name: Ansible Collections
+        run: ansible-galaxy install -r ./provision/requirements.yml
+        working-directory: ./main/training/instructlab
+
+      - name: Release Info
+        run: cat /etc/os-release
+
+      # This provision will actually run the instructlab images, might need to run this differently than standard container
+      # Commenting out the run statement in the playbook for testing
+      - name: Provision
+        run: |
+          ansible-playbook ./main/training/instructlab/provision/playbook.yml \
+            -i terraform-test-environment-module/hosts.ini \
+            --private-key=terraform-test-environment-module/${{ steps.terraform-output.outputs.pem_filename }}
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: false
+          image_name: ${{ matrix.image_name }}
       
       - name: Terraform Output
         id: terraform-output
@@ -82,10 +111,9 @@ jobs:
           echo "pem_filename=$(terraform output pem_filename | xargs)" >> $GITHUB_OUTPUT
         working-directory: terraform-test-environment-module
 
-      - name: Set up Python
-        uses: actions/setup-python@v5.1.0
-        with:
-          python-version: '3.11'
+      # # THIS IS COMMING IN https://github.com/instructlab/instructlab/pull/1016
+      # - name: Run Integration Tests
+      #   working-directory: ./main/training/instructlab
 
       - name: Destroy Test Environment
         id: down

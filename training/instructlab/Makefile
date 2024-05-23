@@ -16,14 +16,14 @@ instructlab:
 .PHONY: nvidia
 nvidia: instructlab
 	rm -rf ../build/instructlab-$@
-	podman build --layers=false --squash-all -t oci:../build/instructlab-$@ instructlab/containers/cuda
+	podman build --squash-all -t ${REGISTRY}/${REGISTRY_ORG}/$@:${IMAGE_TAG} instructlab/containers/cuda
 
 .PHONY: amd
 amd: instructlab
 	rm -rf ../build/instructlab-$@
-	podman build --layers=false --squash-all -t oci:../build/instructlab-$@ -f instructlab/containers/rocm/Containerfile instructlab
+	podman build --squash-all -t ${REGISTRY}/${REGISTRY_ORG}/$@:${IMAGE_TAG} -f instructlab/containers/rocm/Containerfile instructlab
 
 .PHONY: intel
 intel: instructlab
 	rm -rf ../build/instructlab-$@
-	podman build --layers=false --squash-all -t oci:../build/instructlab-$@ -f instructlab/containers/hpu/Containerfile instructlab
+	podman build --squash-all -t ${REGISTRY}/${REGISTRY_ORG}/$@:${IMAGE_TAG} -f instructlab/containers/hpu/Containerfile instructlab

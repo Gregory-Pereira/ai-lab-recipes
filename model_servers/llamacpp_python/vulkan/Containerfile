@@ -1,11 +1,22 @@
 FROM registry.access.redhat.com/ubi9/python-311:1-62.1716478620
 USER 0
+ENV CC=gcc
+ENV CXX=g++
+RUN mkdir -p /llvm-project/build
+WORKDIR /llvm-project/build
+COPY vulkan/llvm .
+RUN cmake -G Ninja \
+    -DLLVM_ENABLE_PROJECTS="clang;lld;libcxx;libcxxabi" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    ../llvm
+RUN cmake --build . --target install
+RUN rm -rf /llvm-project
+
 RUN dnf install -y python3-dnf-plugin-versionlock && \
-    dnf install -y \
-https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm && \
-    dnf copr enable -y slp/mesa-krunkit && \
-    dnf install -y mesa-vulkan-drivers-23.3.3-101.el9.aarch64 && \
-    dnf versionlock mesa-vulkan-drivers-23.3.3-101.el9.aarch64 && \
+    dnf copr enable -y slp/mesa-krunkit epel-9 && \
+    dnf install -y mesa-vulkan-drivers-23.3.3-101.el9 && \
+    dnf versionlock mesa-vulkan-drivers-23.3.3-101.el9 && \
     dnf install -y git cmake ninja-build gcc gcc-c++ vulkan-loader-devel vulkan-tools
 USER 1001
 WORKDIR /locallm

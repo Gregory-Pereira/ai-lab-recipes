@@ -1,0 +1,43 @@
+FROM registry.redhat.io/rhel9/python-312:1-10.1717085981
+
+ARG TARGETARCH
+
+USER 0
+
+RUN dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+RUN dnf install -y curl ninja-build libtool \
+    gdb-gdbserver \
+    pkg-config 
+    # Already installed
+        # wget ca-certificates gnupg2 gcc gdb git make
+    # Doesnt exist
+        # uuid-dev libaio-dev clang-format-10 clang-tidy-10 lcov gdbserver ccache libssl-dev zlib1g-dev libopenblas-dev
+        # what does exist in dnf
+        # libuuid-devel
+    # apt-get remove --purge -y && \
+    # rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install conan==1.61.0
+
+RUN echo "target arch $TARGETARCH"
+RUN wget -qO- "https://cmake.org/files/v3.27/cmake-3.27.5-linux-`uname -m`.tar.gz" | tar --strip-components=1 -xz -C /usr/local
+
+RUN mkdir /opt/vcpkg &&  \
+    wget -qO- vcpkg.tar.gz https://github.com/microsoft/vcpkg/archive/master.tar.gz | tar --strip-components=1 -xz -C /opt/vcpkg && \
+    rm -rf vcpkg.tar.gz
+
+ENV VCPKG_FORCE_SYSTEM_BINARIES 1
+
+RUN /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics && ln -s /opt/vcpkg/vcpkg /usr/local/bin/vcpkg && vcpkg version
+
+RUN vcpkg install azure-identity-cpp azure-storage-blobs-cpp gtest
+
+# Install Go
+ENV GOPATH /go
+ENV GOROOT /usr/local/go
+ENV GO111MODULE on
+ENV PATH $GOPATH/bin:$GOROOT/bin:$PATH
+RUN mkdir -p /usr/local/go && wget -qO- "https://go.dev/dl/go1.21.10.linux-$TARGETARCH.tar.gz" | tar --strip-components=1 -xz -C /usr/local/go && \
+    mkdir -p "$GOPATH/src" "$GOPATH/bin" && \
+    go clean --modcache && \
+    chmod -R 777 "$GOPATH" && chmod -R a+w $(go env GOTOOLDIR)

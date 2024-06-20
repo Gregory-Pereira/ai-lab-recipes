@@ -79,13 +79,13 @@ nvidia: bootc-models
 # Create bootc container images prepared with AI models pre-loaded
 #
 
-.PHONY: amd-model nvidia-model intel-model 
-amd-model:
-	make -C bootc-models amd
-nvidia-model:
-	make -C bootc-models nvidia
-intel-model:
-	make -C bootc-models intel
+.PHONY: amd-bootc-model nvidia-bootc-model intel-bootc-model 
+amd-boot-model:
+	make bootc-models amd
+nvidia-boot-model:
+	make bootc-models nvidia
+intel-boot-model:
+	make bootc-models intel
 
 #
 # Make Bootc container images preinstalled with cloud-init

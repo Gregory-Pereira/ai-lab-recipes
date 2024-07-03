@@ -53,6 +53,57 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install opentelemetry dependencies
+        run: |
+          pip install --no-cache-dir opentelemetry-sdk opentelemetry-exporter-otlp opentelemetry-instrumentation
+
+      - name: Download OpenTelemetry Collector Contrib
+        run: |
+          wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.103.0/otelcol-contrib_0.103.0_linux_amd64.tar.gz
+          tar -xvf otelcol-contrib_0.103.0_linux_amd64.tar.gz
+
+      - name: Write secrets to files
+        run: |
+          echo "${{ secrets.ROSA_OTEL_CACERT }}" > /tmp/ca.crt
+          echo "${{ secrets.ROSA_OTEL_SERVER_CRT }}" > /tmp/server.crt
+          echo "${{ secrets.ROSA_OTEL_SERVER_KEY }}" > /tmp/server.key
+
+      - name: Configure OpenTelemetry Collector
+        run: |
+          echo '
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                http:
+          exporters:
+            otlphttp:
+              endpoint: "${{ secrets.ROSA_OTEL_ENDPOINT }}"
+              tls:
+                insecure: false
+                cert_file: /tmp/server.crt
+                key_file: /tmp/server.key
+                ca_file: /tmp/ca.crt
+            debug:
+              verbosity: detailed
+          service:
+            pipelines:
+              metrics:
+                receivers: [otlp]
+                exporters: [debug, otlphttp]
+          ' > otel-collector-config.yaml
+
+      - name: Run OpenTelemetry Collector
+        run: |
+          ./otelcol-contrib --config otel-collector-config.yaml > otel-collector.log 2>&1 &
+
+      - name: Start integration-tests job metric
+        run: |
+          export WORKFLOW_NAME="testing-framework"
+          export JOB_NAME="integration-tests"
+          export TRACE_ACTION="start"
+          python ci/metrics-generate.py
+
       - name: Checkout terraform module
         id: checkout-module
         uses: actions/checkout@v4.1.7
@@ -89,7 +140,7 @@ jobs:
 
       - name: Ansible Collections
         run: ansible-galaxy install -r ./provision/requirements.yml
-        working-directory: ./recipes/natural_language_processing/chatbot
+        working-directory: ./main/recipes/natural_language_processing/chatbot
 
       - name: Provision
         run: |
@@ -130,6 +181,16 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
+<<<<<<< HEAD
+=======
+      - name: End integration-tests job metric
+        run: |
+          export WORKFLOW_NAME="testing-framework"
+          export JOB_NAME="integration-tests"
+          export TRACE_ACTION="end"
+          python ci/metrics-generate.py
+
+>>>>>>> 0455b4a (update gh actions workflow traces to metrics)
   release-images:
     runs-on: ubuntu-24.04
     needs: integration-tests
